@@ -1,4 +1,4 @@
-FROM archlinux/base
+FROM archlinux:latest
 
 # Docker Image for building nymphcast server from
 # https://aur.archlinux.org/packages/nymphcast-server-git/
