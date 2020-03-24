@@ -1,9 +1,11 @@
-FROM archlinux:latest
+FROM archlinux:latest AS builder
 
 # Docker Image for building nymphcast server from
 # https://aur.archlinux.org/packages/nymphcast-server-git/
 #
 # See https://github.com/MayaPosch/NymphCast
+
+WORKDIR /nymphcast
 
 ### Install requirements for building an aur package with makepkg
 RUN pacman -Syu --noconfirm && \
@@ -21,22 +23,33 @@ RUN pacman -Syu --noconfirm && \
     rm -rf /var/cache/pacman/pkg/*.pkg
 
 ### NymphRPC
-RUN cd tmp && \
-    git clone https://aur.archlinux.org/nymphrpc-git.git && \
+RUN git clone https://aur.archlinux.org/nymphrpc-git.git && \
     chown -R nobody: nymphrpc-git && \
     cd nymphrpc-git && \
     sudo -u nobody makepkg && \
-    pacman -U --noconfirm /tmp/nymphrpc-git/*.pkg.tar.xz && \
-    rm -rf /tmp/nymphrpc-git
+    pacman -U --noconfirm *.pkg.tar.xz
 
 ### Nymphcast Server
-RUN cd tmp && \
-    git clone https://aur.archlinux.org/nymphcast-server-git.git && \
+RUN git clone https://aur.archlinux.org/nymphcast-server-git.git && \
     chown -R nobody: nymphcast-server-git && \
     cd nymphcast-server-git && \
-    sudo -u nobody makepkg -f && \
-    pacman -U --noconfirm /tmp/nymphcast-server-git/*.pkg.tar.xz && \
-    rm -rf /tmp/nymphcast-server-git
+    sudo -u nobody makepkg
+
+FROM archlinux:latest
+
+WORKDIR /root/
+
+RUN pacman -Syu --noconfirm && \
+    pacman -S --needed --noconfirm \
+        ffmpeg \
+        sdl2_image \
+    && \
+    rm -rf /var/cache/pacman/pkg/*.pkg
+
+COPY --from=builder /nymphcast/nymphcast-server-git/*.pkg.tar.xz .
+COPY --from=builder /nymphcast/nymphrpc-git/*.pkg.tar.xz .
+
+RUN pacman -U --noconfirm *.pkg.tar.xz
 
 COPY entrypoint.sh /
 
